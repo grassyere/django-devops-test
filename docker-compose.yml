@@ -1,0 +1,44 @@
+#add migrations on docker-compose file
+#web app must collect nginx conf first
+version: '3.7'
+
+services:
+  web:
+    build: .
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    container_name: ${ENV_NAME}_web_app
+    volumes:
+      - .:/code
+      - ./static:/code/static
+      - ./media:/code/media
+      - ./docker/nginx:/code/nginx/
+    ports:
+      - ${APP_PORTS}
+    entrypoint: ./docker/entrypoint.sh
+
+  postgres:
+    image: postgres
+    container_name: ${ENV_NAME}_pg
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - ./docker/postgres-db-init:/docker-entrypoint-initdb.d/
+      - ./docker/postgres:/var/lib/postgresql/data
+    ports:
+      - ${POSTGRES_PORTS}
+
+  server:
+    image: nginx:1.25.1-alpine
+    depends_on:
+      - web
+    ports:
+      - ${NGINX_PORTS}
+    volumes:
+      - ./static:/code/static
+      - ./media:/code/media
+      - ./docker/nginx:/etc/nginx/conf.d
+    restart: always
